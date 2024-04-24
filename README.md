@@ -1,5 +1,7 @@
 # Open pplx
 
+This is still in development.
+
 I'm not gonna say what pplx stands for but you probably have a good idea :)
 
 Super simple terminal application to ask questions and get answers. Powered by
