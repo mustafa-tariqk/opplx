@@ -3,14 +3,15 @@ LLM + Web Search Engine
 """
 import sys
 from typing import List
+
 import urllib3
 from googlesearch import search
+from langchain.chains import RetrievalQA
 from langchain.docstore.document import Document
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.embeddings import OllamaEmbeddings
 from langchain_community.chat_models import ChatOllama
+from langchain_community.embeddings import OllamaEmbeddings
 from langchain_community.vectorstores import FAISS
-from langchain.chains import RetrievalQAChain
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 
 def load(question: str, top_k: int) -> List[Document]:
@@ -38,13 +39,13 @@ def process(documents: List[Document]) -> List[Document]:
     return split_documents
 
 
-def retrieve(documents: List[Document]) -> VectorStoreRetriever:
+def retrieve(documents: List[Document], top_k: int = 5):
     """
     Find useful information from documents
     """
     embeddings_function = OllamaEmbeddings(model="llama3")
     db = FAISS.from_documents(documents, embeddings_function)
-    return db.as_retriever(search_kwargs={'k': 5})
+    return db.as_retriever(search_kwargs={'k': top_k})
 
 
 def generate(question: str) -> str:
@@ -52,11 +53,11 @@ def generate(question: str) -> str:
     Generate an answer based on retrieved information
     """
     llm = ChatOllama(model="llama3")
-    loads = load(question, 1)
+    loads = load(question, 10)
     processed = process(loads)
-    retriever = retrieve(processed)
-    qa = RetrievalQAChain.from_llm(llm, retriever=retriever)
-    return qa({"question": question})["result"]
+    retriever = retrieve(processed, 10)
+    qa = RetrievalQA.from_llm(llm, retriever=retriever)
+    return qa.invoke({"query": question})["result"]
 
 
 def main() -> None:
