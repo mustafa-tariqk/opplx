@@ -6,11 +6,14 @@ setup(
     packages=find_packages(),
     entry_points={
         'console_scripts': [
-            'opplx = ollama.__init__',
+            'opplx = ollama.__init__:main',
         ],
     },
     install_requires=[
         'langchain',
-        'googlesearch-python'
+        'googlesearch-python',
+        'twine',
+        'setuptools',
+        'wheel'
     ],
 )
