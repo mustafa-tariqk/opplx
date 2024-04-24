@@ -14,6 +14,7 @@ setup(
         'googlesearch-python',
         'twine',
         'setuptools',
-        'wheel'
+        'wheel',
+        'faiss-cpu'
     ],
 )
