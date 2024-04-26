@@ -28,9 +28,9 @@ def load(question: str, top_k: int) -> List[Document]:
             'GET', "https://r.jina.ai/" + link).data, metadata={'url': link}))
     
     # write documents to files
-    for i, doc in enumerate(documents):
-        with open(f"doc_{i}.txt", "w") as f:
-            f.write(doc.page_content)
+    # for i, doc in enumerate(documents):
+    #     with open(f"doc_{i}.txt", "w", encoding="utf-8") as f:
+    #         f.write(doc.page_content)
 
     return documents
 
@@ -73,7 +73,7 @@ def generate(question: str) -> str:
     Generate an answer based on retrieved information
     """
     llm = ChatOllama(model="llama3")
-    #loads = load(question, 5)
+    # loads = load(question, 5)
     loads = load_from_files('.')
     processed = process(loads)
     retriever = retrieve(processed, 5)
