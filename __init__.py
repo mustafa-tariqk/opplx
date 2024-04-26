@@ -34,6 +34,17 @@ def load(question: str, top_k: int) -> List[Document]:
 
     return documents
 
+def load_from_files(path: str) -> List[Document]:
+    """
+    Create documents from files
+    """
+    documents = []
+    for i in range(5):
+        with open(f"{path}/doc_{i}.txt", "r") as f:
+            page_content = f.read()
+        documents.append(Document(page_content=page_content))
+    return documents
+
 
 def process(documents: List[Document]) -> List[Document]:
     """
@@ -62,7 +73,8 @@ def generate(question: str) -> str:
     Generate an answer based on retrieved information
     """
     llm = ChatOllama(model="llama3")
-    loads = load(question, 5)
+    #loads = load(question, 5)
+    loads = load_from_files('.')
     processed = process(loads)
     retriever = retrieve(processed, 5)
     print('Generating answer')
