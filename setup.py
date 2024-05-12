@@ -1,3 +1,6 @@
+"""
+This file is required for create and distribute as a Python package
+"""
 from setuptools import setup, find_packages
 
 setup(

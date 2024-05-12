@@ -1,82 +1,56 @@
 """
 LLM + Web Search Engine
 """
+import re
 import sys
-from typing import List
 
 import urllib3
 from googlesearch import search
-from langchain.chains import RetrievalQA
+from langchain.chains.retrieval_qa.base import RetrievalQA
 from langchain.docstore.document import Document
 from langchain_community.chat_models import ChatOllama
 from langchain_community.embeddings import OllamaEmbeddings
 from langchain_community.vectorstores import FAISS
+from langchain_core.callbacks import StreamingStdOutCallbackHandler
+from langchain_core.vectorstores import VectorStoreRetriever
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 
-def load(question: str, top_k: int) -> List[Document]:
+def make_retriever(question: str, num_links: int, num_documents: int) -> VectorStoreRetriever:
     """
-    Load documents based on user question
+    Args:
+        question (str): The question to search the web for
+        num_links (int): The number of links to retrieve based on question
+        num_documents (int): The number of documents to retrieve based on links
+    Returns:
+        VectorStoreRetriever: A retriever based on the documents retrieved from the web
     """
-    print('Searching for:', question)
     http = urllib3.PoolManager()
-    links = search(question, num_results=top_k, lang="en")
+    splitter = RecursiveCharacterTextSplitter()
+    embeddings_function = OllamaEmbeddings(model="llama3")
+
+    links = search(question, num_results=num_links, lang="en")
     documents = []
     for link in links:
-        # Eventually use jina locally / some other way to get the page content
         documents.append(Document(page_content=http.request(
-            'GET', "https://r.jina.ai/" + link).data, metadata={'url': link}))
-    
-    # write documents to files
-    for i, doc in enumerate(documents):
-        with open(f"doc_{i}.txt", "w") as f:
-            f.write(doc.page_content)
-
-    return documents
-
-
-def process(documents: List[Document]) -> List[Document]:
-    """
-    Process documents for better indexing
-    """
-    print('Processing documents')
-    text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1000, chunk_overlap=200, add_start_index=True
-    )
-    split_documents = text_splitter.split_documents(documents)
-    return split_documents
-
-
-def retrieve(documents: List[Document], top_k: int = 5):
-    """
-    Find useful information from documents
-    """
-    print('Retrieving information')
-    embeddings_function = OllamaEmbeddings(model="llama3")
+            'GET', "https://r.jina.ai/" + link).data, metadata={'source': link}))
+    documents = splitter.split_documents(documents)
     db = FAISS.from_documents(documents, embeddings_function)
-    return db.as_retriever(search_kwargs={'k': top_k})
-
-
-def generate(question: str) -> str:
-    """
-    Generate an answer based on retrieved information
-    """
-    llm = ChatOllama(model="llama3")
-    loads = load(question, 5)
-    processed = process(loads)
-    retriever = retrieve(processed, 5)
-    print('Generating answer')
-    qa = RetrievalQA.from_llm(llm, retriever=retriever)
-    return qa.invoke({"query": question})["result"]
+    return db.as_retriever(search_kwargs={'k': num_documents})
 
 
 def main() -> None:
     """
-    Handle all input and output
+    Handle all input and output, generate response
     """
-    question = ' '.join(sys.argv[1:])
-    answer = generate(question)
-    print(answer)
+    question = re.escape(' '.join(sys.argv[1:]))
+    qa = RetrievalQA.from_llm(llm=ChatOllama(model="llama3"),
+                              retriever=make_retriever(question, 1, 1),
+                              callbacks=StreamingStdOutCallbackHandler())
+    # qa.invoke({"query": question})["result"]
+    chain = RunnableParallel([qa, RunnablePassthrough()]).assign(answer=question)
+    for chunk in qa.stream({"query": question}):
+        print(chunk)
 
 
 if __name__ == '__main__':
